@@ -42,9 +42,9 @@ namespace Ocelot.IntegrationTests
         {
             var configuration = new FileConfiguration
             {
-                ReRoutes = new List<FileReRoute>
+                Routes = new List<FileRoute>
                     {
-                        new FileReRoute
+                        new FileRoute
                         {
                             DownstreamPathTemplate = "/",
                             DownstreamScheme = "http",
@@ -53,7 +53,7 @@ namespace Ocelot.IntegrationTests
                                 new FileHostAndPort
                                 {
                                     Host = "localhost",
-                                    Port = 51879,
+                                    Port = 51611,
                                 },
                             },
                             UpstreamPathTemplate = "/",
@@ -63,7 +63,7 @@ namespace Ocelot.IntegrationTests
             };
 
             this.Given(x => GivenThereIsAConfiguration(configuration))
-                .And(x => GivenThereIsAServiceRunningOn("http://localhost:51879"))
+                .And(x => GivenThereIsAServiceRunningOn("http://localhost:51611"))
                 .And(x => GivenOcelotIsRunning())
                 .When(x => WhenIGetUrlOnTheApiGatewayMultipleTimesWithDifferentHeaderValues("/", 300))
                 .Then(x => ThenTheSameHeaderValuesAreReturnedByTheDownstreamService())

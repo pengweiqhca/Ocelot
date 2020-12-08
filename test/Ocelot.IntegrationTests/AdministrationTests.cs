@@ -21,6 +21,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using TestStack.BDDfy;
+using Ocelot.Configuration.ChangeTracking;
 using Xunit;
 
 namespace Ocelot.IntegrationTests
@@ -107,7 +108,7 @@ namespace Ocelot.IntegrationTests
                 .And(x => GivenIdentityServerSigningEnvironmentalVariablesAreSet())
                 .And(x => GivenOcelotIsRunning())
                 .And(x => GivenIHaveAnOcelotToken("/administration"))
-                .And(x => GivenAnotherOcelotIsRunning("http://localhost:5007"))
+                .And(x => GivenAnotherOcelotIsRunning("http://localhost:5017"))
                 .When(x => WhenIGetUrlOnTheSecondOcelot("/administration/configuration"))
                 .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
                 .BDDfy();
@@ -123,12 +124,13 @@ namespace Ocelot.IntegrationTests
                     RequestIdKey = "RequestId",
                     ServiceDiscoveryProvider = new FileServiceDiscoveryProvider
                     {
+                        Scheme = "https",
                         Host = "127.0.0.1",
                     }
                 },
-                ReRoutes = new List<FileReRoute>()
+                Routes = new List<FileRoute>()
                 {
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -148,7 +150,7 @@ namespace Ocelot.IntegrationTests
                             Region = "Geoff"
                         }
                     },
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -189,9 +191,9 @@ namespace Ocelot.IntegrationTests
                 GlobalConfiguration = new FileGlobalConfiguration
                 {
                 },
-                ReRoutes = new List<FileReRoute>()
+                Routes = new List<FileRoute>()
                 {
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -206,7 +208,7 @@ namespace Ocelot.IntegrationTests
                         UpstreamHttpMethod = new List<string> { "get" },
                         UpstreamPathTemplate = "/"
                     },
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -229,9 +231,9 @@ namespace Ocelot.IntegrationTests
                 GlobalConfiguration = new FileGlobalConfiguration
                 {
                 },
-                ReRoutes = new List<FileReRoute>()
+                Routes = new List<FileRoute>()
                 {
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -246,7 +248,7 @@ namespace Ocelot.IntegrationTests
                         UpstreamHttpMethod = new List<string> { "get" },
                         UpstreamPathTemplate = "/"
                     },
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -278,6 +280,51 @@ namespace Ocelot.IntegrationTests
                 .BDDfy();
         }
 
+        [Fact]
+        public void should_activate_change_token_when_configuration_is_updated()
+        {
+            var configuration = new FileConfiguration
+            {
+                GlobalConfiguration = new FileGlobalConfiguration(),
+                Routes = new List<FileRoute>
+                {
+                    new FileRoute
+                    {
+                        DownstreamHostAndPorts = new List<FileHostAndPort>
+                        {
+                            new FileHostAndPort
+                            {
+                                Host = "localhost",
+                                Port = 80,
+                            },
+                        },
+                        DownstreamScheme = "https",
+                        DownstreamPathTemplate = "/",
+                        UpstreamHttpMethod = new List<string> { "get" },
+                        UpstreamPathTemplate = "/",
+                    },
+                },
+            };
+
+            this.Given(x => GivenThereIsAConfiguration(configuration))
+                .And(x => GivenOcelotIsRunning())
+                .And(x => GivenIHaveAnOcelotToken("/administration"))
+                .And(x => GivenIHaveAddedATokenToMyRequest())
+                .When(x => WhenIPostOnTheApiGateway("/administration/configuration", configuration))
+                .Then(x => ThenTheStatusCodeShouldBe(HttpStatusCode.OK))
+                .And(x => TheChangeTokenShouldBeActive())
+                .And(x => ThenTheResponseShouldBe(configuration))
+                .When(x => WhenIGetUrlOnTheApiGateway("/administration/configuration"))
+                .And(x => ThenTheResponseShouldBe(configuration))
+                .And(_ => ThenTheConfigurationIsSavedCorrectly(configuration))
+                .BDDfy();
+        }
+
+        private void TheChangeTokenShouldBeActive()
+        {
+            _builder.Services.GetRequiredService<IOcelotConfigurationChangeTokenSource>().ChangeToken.HasChanged.ShouldBeTrue();
+        }
+
         private void ThenTheConfigurationIsSavedCorrectly(FileConfiguration expected)
         {
             var ocelotJsonPath = $"{AppContext.BaseDirectory}ocelot.json";
@@ -292,16 +339,16 @@ namespace Ocelot.IntegrationTests
         }
 
         [Fact]
-        public void should_get_file_configuration_edit_and_post_updated_version_redirecting_reroute()
+        public void should_get_file_configuration_edit_and_post_updated_version_redirecting_route()
         {
             var fooPort = 47689;
-            var barPort = 47690;
+            var barPort = 27654;
 
             var initialConfiguration = new FileConfiguration
             {
-                ReRoutes = new List<FileReRoute>()
+                Routes = new List<FileRoute>()
                 {
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -324,9 +371,9 @@ namespace Ocelot.IntegrationTests
                 GlobalConfiguration = new FileGlobalConfiguration
                 {
                 },
-                ReRoutes = new List<FileReRoute>()
+                Routes = new List<FileRoute>()
                 {
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -373,9 +420,9 @@ namespace Ocelot.IntegrationTests
                 GlobalConfiguration = new FileGlobalConfiguration
                 {
                 },
-                ReRoutes = new List<FileReRoute>()
+                Routes = new List<FileRoute>()
                 {
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -394,7 +441,7 @@ namespace Ocelot.IntegrationTests
                             TtlSeconds = 10
                         }
                     },
-                    new FileReRoute()
+                    new FileRoute()
                     {
                         DownstreamHostAndPorts = new List<FileHostAndPort>
                         {
@@ -614,23 +661,24 @@ namespace Ocelot.IntegrationTests
             var response = JsonConvert.DeserializeObject<FileConfiguration>(_response.Content.ReadAsStringAsync().Result);
 
             response.GlobalConfiguration.RequestIdKey.ShouldBe(expecteds.GlobalConfiguration.RequestIdKey);
+            response.GlobalConfiguration.ServiceDiscoveryProvider.Scheme.ShouldBe(expecteds.GlobalConfiguration.ServiceDiscoveryProvider.Scheme);
             response.GlobalConfiguration.ServiceDiscoveryProvider.Host.ShouldBe(expecteds.GlobalConfiguration.ServiceDiscoveryProvider.Host);
             response.GlobalConfiguration.ServiceDiscoveryProvider.Port.ShouldBe(expecteds.GlobalConfiguration.ServiceDiscoveryProvider.Port);
 
-            for (var i = 0; i < response.ReRoutes.Count; i++)
+            for (var i = 0; i < response.Routes.Count; i++)
             {
-                for (var j = 0; j < response.ReRoutes[i].DownstreamHostAndPorts.Count; j++)
+                for (var j = 0; j < response.Routes[i].DownstreamHostAndPorts.Count; j++)
                 {
-                    var result = response.ReRoutes[i].DownstreamHostAndPorts[j];
-                    var expected = expecteds.ReRoutes[i].DownstreamHostAndPorts[j];
+                    var result = response.Routes[i].DownstreamHostAndPorts[j];
+                    var expected = expecteds.Routes[i].DownstreamHostAndPorts[j];
                     result.Host.ShouldBe(expected.Host);
                     result.Port.ShouldBe(expected.Port);
                 }
 
-                response.ReRoutes[i].DownstreamPathTemplate.ShouldBe(expecteds.ReRoutes[i].DownstreamPathTemplate);
-                response.ReRoutes[i].DownstreamScheme.ShouldBe(expecteds.ReRoutes[i].DownstreamScheme);
-                response.ReRoutes[i].UpstreamPathTemplate.ShouldBe(expecteds.ReRoutes[i].UpstreamPathTemplate);
-                response.ReRoutes[i].UpstreamHttpMethod.ShouldBe(expecteds.ReRoutes[i].UpstreamHttpMethod);
+                response.Routes[i].DownstreamPathTemplate.ShouldBe(expecteds.Routes[i].DownstreamPathTemplate);
+                response.Routes[i].DownstreamScheme.ShouldBe(expecteds.Routes[i].DownstreamScheme);
+                response.Routes[i].UpstreamPathTemplate.ShouldBe(expecteds.Routes[i].UpstreamPathTemplate);
+                response.Routes[i].UpstreamHttpMethod.ShouldBe(expecteds.Routes[i].UpstreamHttpMethod);
             }
         }
 

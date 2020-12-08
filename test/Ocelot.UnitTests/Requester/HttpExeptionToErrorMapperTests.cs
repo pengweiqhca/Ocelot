@@ -7,6 +7,7 @@
     using Shouldly;
     using System;
     using System.Collections.Generic;
+    using System.Net.Http;
     using System.Threading.Tasks;
     using Xunit;
 
@@ -39,6 +40,22 @@
         }
 
         [Fact]
+        public void should_return_ConnectionToDownstreamServiceError()
+        {
+            var error = _mapper.Map(new HttpRequestException());
+
+            error.ShouldBeOfType<ConnectionToDownstreamServiceError>();
+        }
+
+        [Fact]
+        public void should_return_request_canceled_for_subtype()
+        {
+            var error = _mapper.Map(new SomeException());
+
+            error.ShouldBeOfType<RequestCanceledError>();
+        }
+
+        [Fact]
         public void should_return_error_from_mapper()
         {
             var errorMapping = new Dictionary<Type, Func<Exception, Error>>
@@ -56,5 +73,8 @@
 
             error.ShouldBeOfType<AnyError>();
         }
+
+        private class SomeException : OperationCanceledException
+        { }
     }
 }
